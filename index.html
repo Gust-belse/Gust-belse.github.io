@@ -85,51 +85,59 @@
   };
 
   function loadData() {
-    const saved = localStorage.getItem('inbound_system_data');
-    if (saved) {
-      try { appState = JSON.parse(saved); } catch(e){}
+    try {
+      const saved = localStorage.getItem('inbound_system_data');
+      if (saved) {
+        appState = JSON.parse(saved);
+      }
+    } catch(e) {
+      console.error("Lỗi đọc localStorage:", e);
     }
     appState.lastSync = new Date().toLocaleTimeString('vi-VN');
     renderUI();
   }
 
   function renderUI() {
-    document.getElementById('lastSyncText').textContent = appState.lastSync;
-    let sumShift = 0;
-    const tbody = document.getElementById('lineTableBody');
-    tbody.innerHTML = '';
-    
-    appState.lines.forEach(l => {
-      sumShift += l.totalShiftCount;
-      const color = l.status === 'alert' ? 'text-rose-400' : 'text-emerald-400';
-      tbody.innerHTML += `
-        <tr>
-          <td class="py-2">
-            <div class="font-bold text-white">${l.name}</div>
-            <div class="text-slate-400">${l.operator} <span class="text-slate-500">(${l.empId})</span></div>
-          </td>
-          <td class="py-2 text-right font-mono font-bold ${color}">${l.currentHourCount} <span class="text-slate-500 font-normal">/ ${l.targetPerHour}</span></td>
-          <td class="py-2 text-right font-mono font-bold text-cyan-300">${l.totalShiftCount.toLocaleString()}</td>
-        </tr>`;
-    });
-    document.getElementById('totalShiftSum').textContent = 'Tổng ca: ' + sumShift.toLocaleString();
+    try {
+      document.getElementById('lastSyncText').textContent = appState.lastSync;
+      let sumShift = 0;
+      const tbody = document.getElementById('lineTableBody');
+      tbody.innerHTML = '';
+      
+      appState.lines.forEach(l => {
+        sumShift += l.totalShiftCount;
+        const color = l.status === 'alert' ? 'text-rose-400' : 'text-emerald-400';
+        tbody.innerHTML += `
+          <tr>
+            <td class="py-2">
+              <div class="font-bold text-white">${l.name}</div>
+              <div class="text-slate-400">${l.operator} <span class="text-slate-500">(${l.empId})</span></div>
+            </td>
+            <td class="py-2 text-right font-mono font-bold ${color}">${l.currentHourCount} <span class="text-slate-500 font-normal">/ ${l.targetPerHour}</span></td>
+            <td class="py-2 text-right font-mono font-bold text-cyan-300">${l.totalShiftCount.toLocaleString()}</td>
+          </tr>`;
+      });
+      document.getElementById('totalShiftSum').textContent = 'Tổng ca: ' + sumShift.toLocaleString();
 
-    const hList = document.getElementById('hourlyList');
-    hList.innerHTML = '';
-    appState.hourly.forEach(h => {
-      const pct = Math.min(100, Math.round((h.total / (h.target || 1)) * 100));
-      hList.innerHTML += `
-        <div class="p-2 rounded bg-slate-800/70 border ${h.active ? 'border-amber-500/60' : 'border-slate-700'}">
-          <div class="flex justify-between mb-1">
-            <span class="font-mono ${h.active ? 'text-amber-300 font-bold' : 'text-slate-300'}">${h.hour}</span>
-            <span class="font-mono font-bold text-white">${h.total.toLocaleString()} <span class="text-slate-400 font-normal">(${pct}%)</span></span>
-          </div>
-          <div class="w-full bg-slate-950 h-1.5 rounded overflow-hidden">
-            <div class="bg-amber-400 h-full" style="width:${pct}%"></div>
-          </div>
-        </div>`;
-    });
-    update3DLabelsContent();
+      const hList = document.getElementById('hourlyList');
+      hList.innerHTML = '';
+      appState.hourly.forEach(h => {
+        const pct = Math.min(100, Math.round((h.total / (h.target || 1)) * 100));
+        hList.innerHTML += `
+          <div class="p-2 rounded bg-slate-800/70 border ${h.active ? 'border-amber-500/60' : 'border-slate-700'}">
+            <div class="flex justify-between mb-1">
+              <span class="font-mono ${h.active ? 'text-amber-300 font-bold' : 'text-slate-300'}">${h.hour}</span>
+              <span class="font-mono font-bold text-white">${h.total.toLocaleString()} <span class="text-slate-400 font-normal">(${pct}%)</span></span>
+            </div>
+            <div class="w-full bg-slate-950 h-1.5 rounded overflow-hidden">
+              <div class="bg-amber-400 h-full" style="width:${pct}%"></div>
+            </div>
+          </div>`;
+      });
+      update3DLabelsContent();
+    } catch(e) {
+      console.error("Lỗi vẽ giao diện:", e);
+    }
   }
 
   let scene, camera, renderer, controls;
@@ -138,118 +146,127 @@
   const boxes = [];
 
   function init3D() {
-    const container = document.getElementById('canvasContainer');
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b1120);
+    try {
+      const container = document.getElementById('canvasContainer');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b1120);
 
-    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 22, 28);
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 22, 28);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
-
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(15, 30, 20);
-    scene.add(dirLight);
-    scene.add(new THREE.GridHelper(40, 40, 0x1e293b, 0x1e293b));
-
-    const mainBelt = new THREE.Mesh(
-      new THREE.BoxGeometry(30, 0.6, 2.2),
-      new THREE.MeshStandardMaterial({ color: 0x334155 })
-    );
-    mainBelt.position.set(0, 1, -4);
-    scene.add(mainBelt);
-
-    const startX = -10, spacing = 5;
-    const labelsWrap = document.getElementById('labelsContainer');
-
-    for (let i = 0; i < 5; i++) {
-      const x = startX + i * spacing;
-      const branch = new THREE.Mesh(
-        new THREE.BoxGeometry(1.6, 0.5, 9),
-        new THREE.MeshStandardMaterial({ color: 0x475569 })
-      );
-      branch.position.set(x, 1, 1.5);
-      scene.add(branch);
-
-      const operatorMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.45, 0.45, 1.6, 16),
-        new THREE.MeshStandardMaterial({ color: 0x06b6d4 })
-      );
-      operatorMesh.position.set(x, 1.2, 6.8);
-      scene.add(operatorMesh);
-
-      stationPositions.push(new THREE.Vector3(x, 3.2, 6.8));
-
-      const el = document.createElement('div');
-      el.className = 'label-3d bg-slate-900/95 border border-cyan-500/60 rounded px-2.5 py-1 text-center shadow-lg min-w-[125px]';
-      labelsWrap.appendChild(el);
-      labelElements.push(el);
-
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(0.8, 0.6, 0.8),
-        new THREE.MeshStandardMaterial({ color: 0xf59e0b })
-      );
-      box.position.set(x, 1.6, 5 - i * 1.5);
-      scene.add(box);
-      boxes.push({ mesh: box });
-    }
-
-    window.addEventListener('resize', () => {
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
+      renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(container.clientWidth, container.clientHeight);
-    });
+      container.appendChild(renderer.domElement);
 
-    animate();
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(15, 30, 20);
+      scene.add(dirLight);
+      scene.add(new THREE.GridHelper(40, 40, 0x1e293b, 0x1e293b));
+
+      const mainBelt = new THREE.Mesh(
+        new THREE.BoxGeometry(30, 0.6, 2.2),
+        new THREE.MeshStandardMaterial({ color: 0x334155 })
+      );
+      mainBelt.position.set(0, 1, -4);
+      scene.add(mainBelt);
+
+      const startX = -10, spacing = 5;
+      const labelsWrap = document.getElementById('labelsContainer');
+
+      for (let i = 0; i < 5; i++) {
+        const x = startX + i * spacing;
+        const branch = new THREE.Mesh(
+          new THREE.BoxGeometry(1.6, 0.5, 9),
+          new THREE.MeshStandardMaterial({ color: 0x475569 })
+        );
+        branch.position.set(x, 1, 1.5);
+        scene.add(branch);
+
+        const operatorMesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.45, 0.45, 1.6, 16),
+          new THREE.MeshStandardMaterial({ color: 0x06b6d4 })
+        );
+        operatorMesh.position.set(x, 1.2, 6.8);
+        scene.add(operatorMesh);
+
+        stationPositions.push(new THREE.Vector3(x, 3.2, 6.8));
+
+        const el = document.createElement('div');
+        el.className = 'label-3d bg-slate-900/95 border border-cyan-500/60 rounded px-2.5 py-1 text-center shadow-lg min-w-[125px]';
+        labelsWrap.appendChild(el);
+        labelElements.push(el);
+
+        const box = new THREE.Mesh(
+          new THREE.BoxGeometry(0.8, 0.6, 0.8),
+          new THREE.MeshStandardMaterial({ color: 0xf59e0b })
+        );
+        box.position.set(x, 1.6, 5 - i * 1.5);
+        scene.add(box);
+        boxes.push({ mesh: box });
+      }
+
+      window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      });
+
+      animate();
+    } catch(e) {
+      console.error("Lỗi khởi tạo 3D (bỏ qua để hiển thị bảng số liệu):", e);
+    }
   }
 
   function update3DLabelsContent() {
-    appState.lines.forEach((line, i) => {
-      if (!labelElements[i]) return;
-      const borderCol = line.status === 'alert' ? 'border-rose-500' : 'border-cyan-500/70';
-      labelElements[i].className = `label-3d bg-slate-900/95 border ${borderCol} rounded px-2.5 py-1 text-center shadow-lg min-w-[130px]`;
-      labelElements[i].innerHTML = `
-        <div class="text-[10px] font-bold text-cyan-400">${line.name}</div>
-        <div class="text-xs font-bold text-white truncate">${line.operator}</div>
-        <div class="text-[11px] font-mono text-emerald-400">${line.currentHourCount} pcs/h | Tổng: ${line.totalShiftCount}</div>
-      `;
-    });
+    try {
+      appState.lines.forEach((line, i) => {
+        if (!labelElements[i]) return;
+        const borderCol = line.status === 'alert' ? 'border-rose-500' : 'border-cyan-500/70';
+        labelElements[i].className = `label-3d bg-slate-900/95 border ${borderCol} rounded px-2.5 py-1 text-center shadow-lg min-w-[130px]`;
+        labelElements[i].innerHTML = `
+          <div class="text-[10px] font-bold text-cyan-400">${line.name}</div>
+          <div class="text-xs font-bold text-white truncate">${line.operator}</div>
+          <div class="text-[11px] font-mono text-emerald-400">${line.currentHourCount} pcs/h | Tổng: ${line.totalShiftCount}</div>
+        `;
+      });
+    } catch(e) {}
   }
 
   function animate() {
     requestAnimationFrame(animate);
-    controls.update();
+    if (!renderer || !scene || !camera) return;
+    try {
+      if (controls) controls.update();
 
-    boxes.forEach(b => {
-      b.mesh.position.z -= 0.05;
-      if (b.mesh.position.z < -3.5) b.mesh.position.z = 5.8;
-    });
+      boxes.forEach(b => {
+        b.mesh.position.z -= 0.05;
+        if (b.mesh.position.z < -3.5) b.mesh.position.z = 5.8;
+      });
 
-    const container = document.getElementById('canvasContainer');
-    stationPositions.forEach((pos, i) => {
-      const projected = pos.clone().project(camera);
-      const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
-      const y = (-(projected.y * 0.5) + 0.5) * container.clientHeight;
-      if (labelElements[i]) {
-        labelElements[i].style.left = `${x}px`;
-        labelElements[i].style.top = `${y}px`;
-        labelElements[i].style.opacity = projected.z < 1 ? '1' : '0';
-      }
-    });
+      const container = document.getElementById('canvasContainer');
+      stationPositions.forEach((pos, i) => {
+        const projected = pos.clone().project(camera);
+        const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
+        const y = (-(projected.y * 0.5) + 0.5) * container.clientHeight;
+        if (labelElements[i]) {
+          labelElements[i].style.left = `${x}px`;
+          labelElements[i].style.top = `${y}px`;
+          labelElements[i].style.opacity = projected.z < 1 ? '1' : '0';
+        }
+      });
 
-    renderer.render(scene, camera);
+      renderer.render(scene, camera);
+    } catch(e) {}
   }
 
   window.onload = function() {
-    init3D();
-    loadData();
-    setInterval(loadData, 3000); // Tự động cập nhật mỗi 3 giây
+    loadData();     // Tải dữ liệu và vẽ bảng trước tiên
+    init3D();       // Khởi tạo 3D sau
+    setInterval(loadData, 3000); // Tự động đồng bộ mỗi 3 giây
   };
 </script>
 </body>
