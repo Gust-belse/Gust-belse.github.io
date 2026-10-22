@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Phân Công Nhân Sự (PIC Panel)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col">
+
+  <header class="h-12 bg-slate-900 border-b border-slate-700 px-4 flex items-center justify-between shrink-0">
+    <div class="flex items-center gap-3">
+      <h1 class="font-bold text-sm tracking-wider uppercase text-cyan-400">Cổng Nhập Liệu PIC - Băng Chuyền Nhận</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="index.html" class="px-3 py-1.5 text-xs font-semibold rounded bg-slate-800 text-slate-300 hover:bg-slate-700">Quay lại Màn Hình 3D</a>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-6">
+    <div class="max-w-4xl mx-auto bg-slate-900 border border-slate-700 rounded-lg p-5">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white">Phân Công Nhân Sự Đầu Line</h2>
+          <p class="text-xs text-slate-400">Nhập tên nhân viên và định mức, hệ thống 3D sẽ tự động cập nhật ngay lập tức.</p>
+        </div>
+        <button onclick="saveData()" id="btnSave" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded shadow">
+          Lưu & Cập Nhật Lên 3D
+        </button>
+      </div>
+      <div id="picFormRows" class="space-y-3"></div>
+    </div>
+  </main>
+
+<script>
+  let appState = {
+    lines: [
+      { id: 'L1', name: 'TELE LINE 01', operator: 'Nguyễn Văn An', empId: 'NV01', targetPerHour: 450, currentHourCount: 380, totalShiftCount: 1520, status: 'active' },
+      { id: 'L2', name: 'TELE LINE 02', operator: 'Trần Minh Tâm', empId: 'NV02', targetPerHour: 450, currentHourCount: 410, totalShiftCount: 1680, status: 'active' },
+      { id: 'L3', name: 'TELE LINE 03', operator: 'Lê Hoàng Nam', empId: 'NV03', targetPerHour: 450, currentHourCount: 290, totalShiftCount: 1190, status: 'alert' },
+      { id: 'L4', name: 'TELE LINE 04', operator: 'Phạm Thị Hoa', empId: 'NV04', targetPerHour: 450, currentHourCount: 445, totalShiftCount: 1750, status: 'active' },
+      { id: 'L5', name: 'TELE LINE 05', operator: 'Võ Quốc Bảo', empId: 'NV05', targetPerHour: 450, currentHourCount: 360, totalShiftCount: 1410, status: 'active' }
+    ],
+    hourly: [
+      { hour: '07:00 - 08:00', total: 1850, target: 2000, active: false },
+      { hour: '08:00 - 09:00', total: 2120, target: 2000, active: false },
+      { hour: '09:00 - 10:00', total: 1940, target: 2000, active: false },
+      { hour: '10:00 - 11:00', total: 1885, target: 2000, active: true }
+    ]
+  };
+
+  function initForm() {
+    const saved = localStorage.getItem('inbound_system_data');
+    if (saved) {
+      try { appState = JSON.parse(saved); } catch(e){}
+    }
+    const container = document.getElementById('picFormRows');
+    container.innerHTML = '';
+    
+    appState.lines.forEach((l, i) => {
+      container.innerHTML += `
+        <div class="grid grid-cols-5 gap-3 items-center bg-slate-800/60 p-3 rounded border border-slate-700 text-xs">
+          <div class="font-bold text-cyan-400">${l.name}</div>
+          <input id="op_${i}" value="${l.operator}" placeholder="Tên nhân viên" class="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+          <input id="emp_${i}" value="${l.empId}" placeholder="Mã NV" class="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+          <input id="tar_${i}" type="number" value="${l.targetPerHour}" placeholder="Định mức/h" class="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+          <select id="st_${i}" class="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+            <option value="active" ${l.status === 'active' ? 'selected' : ''}>Đang chạy</option>
+            <option value="alert" ${l.status === 'alert' ? 'selected' : ''}>Cảnh báo chậm</option>
+            <option value="idle" ${l.status === 'idle' ? 'selected' : ''}>Tạm dừng</option>
+          </select>
+        </div>`;
+    });
+  }
+
+  function saveData() {
+    const btn = document.getElementById('btnSave');
+    btn.textContent = 'Đang lưu...';
+    
+    appState.lines.forEach((l, i) => {
+      l.operator = document.getElementById(`op_${i}`).value;
+      l.empId = document.getElementById(`emp_${i}`).value;
+      l.targetPerHour = Number(document.getElementById(`tar_${i}`).value) || 450;
+      l.status = document.getElementById(`st_${i}`).value;
+    });
+
+    localStorage.setItem('inbound_system_data', JSON.stringify(appState));
+    
+    btn.textContent = 'Đã Lưu Thành Công!';
+    setTimeout(() => { 
+      btn.textContent = 'Lưu & Cập Nhật Lên 3D'; 
+      window.location.href = 'index.html'; // Tự động chuyển về màn hình 3D
+    }, 800);
+  }
+
+  window.onload = initForm;
+</script>
+</body>
+</html>
